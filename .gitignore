@@ -1,0 +1,13 @@
+# Abaikan file kompilasi
+*.class
+
+# Abaikan folder setting IDE (agar tidak bentrok settingan VSCode teman)
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# Abaikan file hasil output
+*.png
+*.jpg
