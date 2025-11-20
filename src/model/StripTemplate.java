@@ -11,5 +11,9 @@ public interface StripTemplate {
     
     String getTemplateId();
 
+    /**
+     * Menghasilkan gambar pratinjau kecil untuk layout template.
+     * @return BufferedImage pratinjau
+     */
     BufferedImage getPreviewImage();
 }
