@@ -11,9 +11,19 @@ import java.awt.FontMetrics;
 public class TemplateFourCorners implements StripTemplate {
 
     @Override
-    public String getTemplateName() { return "4 Pojok (Logo di Tengah)"; }
+    public String getTemplateName() {
+        return "4 Pojok (Logo di Tengah)";
+    }
+
     @Override
-    public String getTemplateId() { return "TPL-COR"; }
+    public String getTemplateId() {
+        return "TPL-COR";
+    }
+
+    @Override
+    public int getMaxPhotos() {
+        return 4;
+    }
 
     @Override
     public BufferedImage applyTemplate(ArrayList<BufferedImage> images) {
@@ -22,7 +32,7 @@ public class TemplateFourCorners implements StripTemplate {
         int canvasSize = 400;
         int photoSize = 150;
         int padding = 10;
-        int innerSpace = canvasSize - (2 * photoSize) - (2 * padding); 
+        int innerSpace = canvasSize - (2 * photoSize) - (2 * padding);
 
         BufferedImage finalStrip = new BufferedImage(canvasSize, canvasSize, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = finalStrip.createGraphics();
@@ -30,13 +40,16 @@ public class TemplateFourCorners implements StripTemplate {
         g.fillRect(0, 0, canvasSize, canvasSize);
 
         if (images.size() > 0)
-            g.drawImage(images.get(0), padding, padding, photoSize, photoSize, null);
+            g.drawImage(cropImage(images.get(0), photoSize, photoSize), padding, padding, photoSize, photoSize, null);
         if (images.size() > 1)
-            g.drawImage(images.get(1), padding + photoSize + innerSpace, padding, photoSize, photoSize, null);
+            g.drawImage(cropImage(images.get(1), photoSize, photoSize), padding + photoSize + innerSpace, padding,
+                    photoSize, photoSize, null);
         if (images.size() > 2)
-            g.drawImage(images.get(2), padding, padding + photoSize + innerSpace, photoSize, photoSize, null);
+            g.drawImage(cropImage(images.get(2), photoSize, photoSize), padding, padding + photoSize + innerSpace,
+                    photoSize, photoSize, null);
         if (images.size() > 3)
-            g.drawImage(images.get(3), padding + photoSize + innerSpace, padding + photoSize + innerSpace, photoSize, photoSize, null);
+            g.drawImage(cropImage(images.get(3), photoSize, photoSize), padding + photoSize + innerSpace,
+                    padding + photoSize + innerSpace, photoSize, photoSize, null);
 
         g.setColor(Color.BLACK);
         g.setFont(new Font("Arial", Font.BOLD, 24));
@@ -62,7 +75,7 @@ public class TemplateFourCorners implements StripTemplate {
 
         int photoSize = 80;
         int padding = 10;
-        int innerSpace = w - (2 * photoSize) - (2 * padding); 
+        int innerSpace = w - (2 * photoSize) - (2 * padding);
 
         g.fillRect(padding, padding, photoSize, photoSize);
         g.fillRect(padding + photoSize + innerSpace, padding, photoSize, photoSize);

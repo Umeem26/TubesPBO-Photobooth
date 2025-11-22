@@ -11,9 +11,19 @@ import java.awt.FontMetrics;
 public class TemplateClassicStrip implements StripTemplate {
 
     @Override
-    public String getTemplateName() { return "Strip Klasik (3 Foto + Logo)"; }
+    public String getTemplateName() {
+        return "Strip Klasik (3 Foto + Logo)";
+    }
+
     @Override
-    public String getTemplateId() { return "TPL-C"; }
+    public String getTemplateId() {
+        return "TPL-C";
+    }
+
+    @Override
+    public int getMaxPhotos() {
+        return 3;
+    }
 
     @Override
     public BufferedImage applyTemplate(ArrayList<BufferedImage> images) {
@@ -30,7 +40,8 @@ public class TemplateClassicStrip implements StripTemplate {
         int currentY = padding;
         for (int i = 0; i < 3 && i < images.size(); i++) {
             BufferedImage originalImage = images.get(i);
-            g.drawImage(originalImage, padding, currentY, stripWidth - (2 * padding), photoHeight, null);
+            g.drawImage(cropImage(originalImage, stripWidth - (2 * padding), photoHeight), padding, currentY,
+                    stripWidth - (2 * padding), photoHeight, null);
             currentY += photoHeight + padding;
         }
         g.setColor(Color.BLACK);
