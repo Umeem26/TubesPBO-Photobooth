@@ -17,7 +17,7 @@ import export.LocalExportStrategy;
 import export.DriveExportStrategy;
 
 import com.github.sarxos.webcam.WebcamPanel;
-import com.github.sarxos.webcam.WebcamPanel.Painter; 
+import com.github.sarxos.webcam.WebcamPanel.Painter;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -43,7 +43,7 @@ public class PhotoboothGUI extends JFrame {
     private JComboBox<String> comboTemplate;
     private JComboBox<String> comboExport;
     private JComboBox<String> comboFilter;
-    
+
     private Map<String, FilterStrategy> filterStrategies;
     private JLabel[] galleryLabels;
     private Timer countdownTimer;
@@ -51,6 +51,7 @@ public class PhotoboothGUI extends JFrame {
     private int currentCaptureSlot = 0;
     private CountdownPainter countdownPainter;
     private String selectedTemplateId;
+    private int maxPhotos = 4; // Default
 
     // Warna Tema (Aksen Biru & Aksen Hijau)
     private final Color PRIMARY_COLOR = new Color(0, 120, 215); // Biru Modern
@@ -61,6 +62,15 @@ public class PhotoboothGUI extends JFrame {
     public PhotoboothGUI(PhotoboothService service, String selectedTemplateId) {
         this.service = service;
         this.selectedTemplateId = selectedTemplateId;
+
+        // Reset state setiap kali membuka window baru
+        this.service.clearCapturedImages();
+
+        // Tentukan maxPhotos berdasarkan template
+        StripTemplate tpl = service.getAvailableTemplates().get(selectedTemplateId);
+        if (tpl != null) {
+            this.maxPhotos = tpl.getMaxPhotos();
+        }
 
         setTitle("SixSeven Studio Pro");
         setSize(1100, 750); // Sedikit diperbesar
@@ -82,7 +92,7 @@ public class PhotoboothGUI extends JFrame {
         Painter defaultPainter = webcamPanel.getPainter();
         countdownPainter = new CountdownPainter(defaultPainter);
         webcamPanel.setPainter(countdownPainter);
-        
+
         // Bungkus webcam dengan border agar rapi
         JPanel webcamContainer = new JPanel(new BorderLayout());
         webcamContainer.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 2));
@@ -100,11 +110,12 @@ public class PhotoboothGUI extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 service.getCameraManager().closeCamera();
+                service.clearCapturedImages(); // Bersihkan gambar saat keluar
                 TemplateSelectionGUI selectionGUI = new TemplateSelectionGUI(service);
                 selectionGUI.setVisible(true);
             }
         });
-        
+
         updateGallery();
         webcamPanel.start();
     }
@@ -129,37 +140,37 @@ public class PhotoboothGUI extends JFrame {
         title.setIcon(new ImageIcon("camera.png")); // Ikon di judul
         title.setIconTextGap(15);
 
-        JLabel subtitle = new JLabel("Template: " + this.selectedTemplateId);
+        JLabel subtitle = new JLabel("Template: " + this.selectedTemplateId + " (" + maxPhotos + " Foto)");
         subtitle.setFont(new Font("Segoe UI", Font.ITALIC, 14));
         subtitle.setForeground(Color.LIGHT_GRAY);
 
         header.add(title, BorderLayout.WEST);
         header.add(subtitle, BorderLayout.EAST);
-        
+
         return header;
     }
-    
+
     // --- MODIFIKASI: Gallery dengan Style Polaroid ---
     private JPanel createGalleryPanel() {
-        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
+        JPanel panel = new JPanel(new GridLayout(maxPhotos, 1, 10, 10)); // Grid menyesuaikan jumlah foto
         panel.setBackground(new Color(30, 30, 30)); // Samakan dengan background utama
         panel.setBorder(new EmptyBorder(0, 10, 10, 10)); // Padding luar
         panel.setPreferredSize(new Dimension(220, 0));
 
-        galleryLabels = new JLabel[4];
-        for (int i = 0; i < 4; i++) {
+        galleryLabels = new JLabel[maxPhotos];
+        for (int i = 0; i < maxPhotos; i++) {
             galleryLabels[i] = new JLabel("Slot " + (i + 1), SwingConstants.CENTER);
             galleryLabels[i].setFont(UI_FONT);
             galleryLabels[i].setForeground(Color.GRAY);
-            
+
             // Efek Border Polaroid: Garis putih tipis di dalam, garis abu di luar
             galleryLabels[i].setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.DARK_GRAY, 1),
-                BorderFactory.createMatteBorder(5, 5, 20, 5, new Color(40, 40, 40)) // Bingkai tebal di bawah
+                    BorderFactory.createLineBorder(Color.DARK_GRAY, 1),
+                    BorderFactory.createMatteBorder(5, 5, 20, 5, new Color(40, 40, 40)) // Bingkai tebal di bawah
             ));
             galleryLabels[i].setOpaque(true);
             galleryLabels[i].setBackground(new Color(20, 20, 20)); // Warna slot kosong gelap
-            
+
             panel.add(galleryLabels[i]);
         }
         return panel;
@@ -172,7 +183,7 @@ public class PhotoboothGUI extends JFrame {
         mainActionPanel.setBorder(new EmptyBorder(10, 20, 20, 20)); // Padding lega
 
         // Tombol Besar
-        btnCapture = new JButton("AMBIL FOTO (1/4)");
+        btnCapture = new JButton("AMBIL FOTO (1/" + maxPhotos + ")");
         styleButton(btnCapture, PRIMARY_COLOR); // Biru
         btnCapture.addActionListener(e -> startSingleCaptureCountdown());
 
@@ -183,12 +194,13 @@ public class PhotoboothGUI extends JFrame {
 
         // Dropdowns
         comboFilter = new JComboBox<>();
-        for (String filterName : filterStrategies.keySet()) comboFilter.addItem(filterName);
+        for (String filterName : filterStrategies.keySet())
+            comboFilter.addItem(filterName);
         styleComboBox(comboFilter);
 
         // (Template dihilangkan karena sudah dipilih di awal)
 
-        comboExport = new JComboBox<>(new String[]{"Komputer", "Google Drive"});
+        comboExport = new JComboBox<>(new String[] { "Komputer", "Google Drive" });
         styleComboBox(comboExport);
 
         // Layout Grid untuk Tombol Utama
@@ -200,7 +212,7 @@ public class PhotoboothGUI extends JFrame {
         // Layout Flow untuk Opsi
         JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
         optionsPanel.setOpaque(false);
-        
+
         // Label + Combo Filter
         JPanel filterP = new JPanel(new BorderLayout(5, 0));
         filterP.setOpaque(false);
@@ -208,7 +220,7 @@ public class PhotoboothGUI extends JFrame {
         lblFilter.setFont(UI_FONT);
         filterP.add(lblFilter, BorderLayout.NORTH);
         filterP.add(comboFilter, BorderLayout.CENTER);
-        
+
         // Label + Combo Export
         JPanel exportP = new JPanel(new BorderLayout(5, 0));
         exportP.setOpaque(false);
@@ -223,7 +235,7 @@ public class PhotoboothGUI extends JFrame {
         // Gabungkan
         mainActionPanel.add(buttonPanel, BorderLayout.NORTH);
         mainActionPanel.add(optionsPanel, BorderLayout.CENTER);
-        
+
         return mainActionPanel;
     }
 
@@ -236,7 +248,7 @@ public class PhotoboothGUI extends JFrame {
         btn.setBorder(new EmptyBorder(10, 20, 10, 20)); // Padding tombol
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
-    
+
     // Helper untuk Styling ComboBox
     private void styleComboBox(JComboBox box) {
         box.setFont(UI_FONT);
@@ -246,7 +258,7 @@ public class PhotoboothGUI extends JFrame {
     // --- LOGIKA UTAMA (Tidak Banyak Berubah) ---
 
     private void startSingleCaptureCountdown() {
-        if (currentCaptureSlot >= 4) {
+        if (currentCaptureSlot >= maxPhotos) {
             JOptionPane.showMessageDialog(this, "Galeri sudah penuh. Silakan simpan strip foto Anda.");
             return;
         }
@@ -260,7 +272,7 @@ public class PhotoboothGUI extends JFrame {
             countdownPainter.setCountdownText(String.valueOf(countdownValue));
             webcamPanel.repaint();
             if (countdownValue <= 0) {
-                ((Timer)e.getSource()).stop();
+                ((Timer) e.getSource()).stop();
                 countdownPainter.setCountdownText("");
                 webcamPanel.repaint();
                 takeSinglePicture();
@@ -282,20 +294,20 @@ public class PhotoboothGUI extends JFrame {
         service.addCapturedImage(filteredImage);
         updateGallery();
         currentCaptureSlot++;
-        if (currentCaptureSlot >= 4) {
+        if (currentCaptureSlot >= maxPhotos) {
             btnCapture.setEnabled(false);
             btnSave.setEnabled(true);
             btnCapture.setBackground(Color.DARK_GRAY); // Ubah warna jadi abu jika disabled
             btnCapture.setText("GALERI PENUH");
         } else {
             btnCapture.setEnabled(true);
-            btnCapture.setText("AMBIL FOTO (" + (currentCaptureSlot + 1) + "/4)");
+            btnCapture.setText("AMBIL FOTO (" + (currentCaptureSlot + 1) + "/" + maxPhotos + ")");
         }
     }
 
     private void updateGallery() {
         int capturedCount = service.getCapturedImages().size();
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < maxPhotos; i++) {
             if (i < capturedCount) {
                 BufferedImage img = service.getCapturedImages().get(i);
                 Image thumbnail = img.getScaledInstance(180, 135, Image.SCALE_SMOOTH);
@@ -305,29 +317,29 @@ public class PhotoboothGUI extends JFrame {
                 galleryLabels[i].setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
             } else {
                 galleryLabels[i].setIcon(null);
-                galleryLabels[i].setText("Slot " + (i+1));
+                galleryLabels[i].setText("Slot " + (i + 1));
                 // Style slot kosong
                 galleryLabels[i].setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Color.DARK_GRAY, 1),
-                    BorderFactory.createMatteBorder(5, 5, 20, 5, new Color(40, 40, 40))
-                ));
+                        BorderFactory.createLineBorder(Color.DARK_GRAY, 1),
+                        BorderFactory.createMatteBorder(5, 5, 20, 5, new Color(40, 40, 40))));
             }
         }
     }
-    
+
     private void saveStripProcess() {
         try {
             // Gunakan ID template dari halaman sebelumnya
             BufferedImage finalStrip = service.generateStrip(this.selectedTemplateId);
 
             ImageIcon previewIcon = new ImageIcon(finalStrip.getScaledInstance(
-                finalStrip.getWidth() / 2, finalStrip.getHeight() / 2, Image.SCALE_SMOOTH));
-            
+                    finalStrip.getWidth() / 2, finalStrip.getHeight() / 2, Image.SCALE_SMOOTH));
+
             int choice = JOptionPane.showConfirmDialog(
-                this, new JLabel(previewIcon), "Preview Hasil",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            
-            if (choice != JOptionPane.OK_OPTION) return;
+                    this, new JLabel(previewIcon), "Preview Hasil",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (choice != JOptionPane.OK_OPTION)
+                return;
 
             ExportStrategy strategy;
             String selectedExport = (String) comboExport.getSelectedItem();
@@ -338,9 +350,9 @@ public class PhotoboothGUI extends JFrame {
             }
 
             service.saveFinalImage(strategy, finalStrip);
-            
+
             JOptionPane.showMessageDialog(this, "Berhasil disimpan!");
-            
+
             // Reset
             service.clearCapturedImages();
             updateGallery();
@@ -348,7 +360,7 @@ public class PhotoboothGUI extends JFrame {
             btnCapture.setEnabled(true);
             btnCapture.setBackground(PRIMARY_COLOR); // Kembalikan warna biru
             currentCaptureSlot = 0;
-            btnCapture.setText("AMBIL FOTO (1/4)");
+            btnCapture.setText("AMBIL FOTO (1/" + maxPhotos + ")");
 
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -370,38 +382,44 @@ public class PhotoboothGUI extends JFrame {
             }
         }
     }
-    
+
     // Painter Kustom untuk Countdown
     private class CountdownPainter implements WebcamPanel.Painter {
         private Painter defaultPainter;
         private String countdownText = "";
         private Font countdownFont;
+
         public CountdownPainter(Painter defaultPainter) {
             this.defaultPainter = defaultPainter;
             this.countdownFont = new Font("Segoe UI", Font.BOLD, 150);
         }
-        public void setCountdownText(String text) { this.countdownText = text; }
-        
+
+        public void setCountdownText(String text) {
+            this.countdownText = text;
+        }
+
         @Override
         public void paintPanel(WebcamPanel panel, Graphics2D g2) {
             defaultPainter.paintPanel(panel, g2);
         }
+
         @Override
         public void paintImage(WebcamPanel panel, BufferedImage image, Graphics2D g2) {
             defaultPainter.paintImage(panel, image, g2);
-            if (countdownText.isEmpty()) return;
-            
+            if (countdownText.isEmpty())
+                return;
+
             // Efek Redup (Overlay Hitam Transparan)
             g2.setColor(new Color(0, 0, 0, 100));
             g2.fillRect(0, 0, panel.getWidth(), panel.getHeight());
-            
+
             // Teks Countdown
             g2.setFont(countdownFont);
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             FontMetrics metrics = g2.getFontMetrics(countdownFont);
             int x = (panel.getWidth() - metrics.stringWidth(countdownText)) / 2;
             int y = (panel.getHeight() - metrics.getHeight()) / 2 + metrics.getAscent();
-            
+
             // Shadow Teks
             g2.setColor(new Color(0, 0, 0, 150));
             g2.drawString(countdownText, x + 5, y + 5);

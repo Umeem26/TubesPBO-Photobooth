@@ -11,10 +11,20 @@ import java.awt.FontMetrics;
 public class TemplateFeatured implements StripTemplate {
 
     @Override
-    public String getTemplateName() { return "Foto Utama (1 Besar, 3 Kecil)"; }
+    public String getTemplateName() {
+        return "Foto Utama (1 Besar, 3 Kecil)";
+    }
+    
     @Override
-    public String getTemplateId() { return "TPL-F"; }
-
+    public String getTemplateId() {
+        return "TPL-F";
+    }
+    
+    @Override
+    public int getMaxPhotos() {
+        return 4;
+    }
+        
     @Override
     public BufferedImage applyTemplate(ArrayList<BufferedImage> images) {
         System.out.println("LOG: Menerapkan Template Foto Utama...");
@@ -34,22 +44,26 @@ public class TemplateFeatured implements StripTemplate {
         g.fillRect(0, 0, totalWidth, totalHeight);
 
         if (images.size() > 0)
-            g.drawImage(images.get(0), padding, padding, bigWidth, bigHeight, null);
+            g.drawImage(cropImage(images.get(0), bigWidth, bigHeight), padding, padding, bigWidth, bigHeight, null);
 
         int currentY = padding;
         int smallX = padding + bigWidth + padding;
         
         if (images.size() > 1)
-            g.drawImage(images.get(1), smallX, currentY, smallWidth, smallHeight, null);
+            g.drawImage(cropImage(images.get(1), smallWidth, smallHeight), smallX, currentY, smallWidth, smallHeight,
+                    null);
         currentY += smallHeight + padding;
         
         if (images.size() > 2)
-            g.drawImage(images.get(2), smallX, currentY, smallWidth, smallHeight, null);
-        currentY += smallHeight + padding;
+            g.drawImage(cropImage(images.get(2), smallWidth, smallHeight), smallX, currentY, smallWidth, smallHeight,
+                    null);
         
+        currentY += smallHeight + padding;
+
         if (images.size() > 3)
-            g.drawImage(images.get(3), smallX, currentY, smallWidth, smallHeight, null);
-            
+            g.drawImage(cropImage(images.get(3), smallWidth, smallHeight), smallX, currentY, smallWidth, smallHeight,
+                    null);
+        
         g.dispose();
         return finalStrip;
     }

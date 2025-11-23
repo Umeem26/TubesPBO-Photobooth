@@ -16,14 +16,27 @@ public class TemplateFactory {
         }
 
         if (templateId.equalsIgnoreCase("TPL-V")) {
-            return new TemplateVertical();
+            return new TemplateVertical(4); // Default
+        } else if (templateId.equalsIgnoreCase("TPL-V-2")) {
+            return new TemplateVertical(2);
+        } else if (templateId.equalsIgnoreCase("TPL-V-3")) {
+            return new TemplateVertical(3);
+        } else if (templateId.equalsIgnoreCase("TPL-V-4")) {
+            return new TemplateVertical(4);
+
+        } else if (templateId.equalsIgnoreCase("TPL-H")) {
+            return new TemplateHorizontal(4); // Default
+        } else if (templateId.equalsIgnoreCase("TPL-H-2")) {
+            return new TemplateHorizontal(2);
+        } else if (templateId.equalsIgnoreCase("TPL-H-3")) {
+            return new TemplateHorizontal(3);
+        } else if (templateId.equalsIgnoreCase("TPL-H-4")) {
+            return new TemplateHorizontal(4);
+
         } else if (templateId.equalsIgnoreCase("TPL-SQ")) {
             return new TemplateSquare();
         } else if (templateId.equalsIgnoreCase("TPL-C")) {
             return new TemplateClassicStrip();
-
-        } else if (templateId.equalsIgnoreCase("TPL-H")) {
-            return new TemplateHorizontal();
         } else if (templateId.equalsIgnoreCase("TPL-F")) {
             return new TemplateFeatured();
         } else if (templateId.equalsIgnoreCase("TPL-COR")) {
