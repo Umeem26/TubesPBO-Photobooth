@@ -11,6 +11,9 @@ bin/
 src/credentials.json
 tokens/
 
+desktop.ini
+screenshots/desktop.ini
+
 # Abaikan file hasil output
 *.png
 *.jpg

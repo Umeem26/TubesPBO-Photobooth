@@ -28,12 +28,12 @@ Aplikasi ini bukan sekadar mengambil foto, tetapi memberikan pengalaman *photobo
 
 | Halaman Pemilihan Template | Live Kamera & Filter |
 |:--------------------------:|:--------------------:|
-| ![Template Selection](./screenshots/template_screen.png) | ![Camera UI](./screenshots/camera_screen.png) |
-| *Memilih jenis layout strip* | *Proses foto dengan countdown overlay* |
+| ![Template Selection](screenshots/template_screen.png) | ![Camera UI](screenshots/camera_screen.png) |
+| *Memilih 6 jenis layout strip* | *Proses foto dengan countdown overlay* |
 
 | Hasil QR Code |
 |:-------------:|
-| ![QR Code](./screenshots/qr_result.png) |
+| ![QR Code](screenshots/qr_result.png) |
 | *Scan untuk download via Drive* |
 
 
