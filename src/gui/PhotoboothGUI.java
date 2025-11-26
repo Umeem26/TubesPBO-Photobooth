@@ -46,10 +46,7 @@ public class PhotoboothGUI extends JFrame {
     private CountdownPainter countdownPainter;
     
     private String selectedTemplateId;
-    
-    // --- TAMBAHAN BARU: Variabel dinamis jumlah foto ---
-    private int maxPhotos; 
-    // --- BATAS TAMBAHAN BARU ---
+    private int maxPhotos;
 
     private final Color PRIMARY_COLOR = new Color(0, 120, 215); 
     private final Color SUCCESS_COLOR = new Color(30, 160, 80); 
@@ -60,10 +57,8 @@ public class PhotoboothGUI extends JFrame {
         this.service = service;
         this.selectedTemplateId = selectedTemplateId;
 
-        // --- LOGIKA BARU: Ambil jumlah foto dari template yang dipilih ---
-        StripTemplate currentTemplate = service.getAvailableTemplates().get(selectedTemplateId);
-        this.maxPhotos = currentTemplate.getPhotoCount();
-        // -----------------------------------------------------------------
+        StripTemplate template = service.getAvailableTemplates().get(selectedTemplateId);
+        this.maxPhotos = (template != null) ? template.getMaxPhotos() : 4;
 
         setTitle("Photobooth Studio Pro");
         setSize(1100, 750);
@@ -96,6 +91,7 @@ public class PhotoboothGUI extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                service.clearCapturedImages();
                 service.getCameraManager().closeCamera();
                 TemplateSelectionGUI selectionGUI = new TemplateSelectionGUI(service);
                 selectionGUI.setVisible(true);
@@ -136,15 +132,12 @@ public class PhotoboothGUI extends JFrame {
     
     // --- MODIFIKASI: Galeri Dinamis sesuai maxPhotos ---
     private JPanel createGalleryPanel() {
-        // GridLayout menyesuaikan baris dengan maxPhotos
         JPanel panel = new JPanel(new GridLayout(maxPhotos, 1, 10, 10));
         panel.setBackground(new Color(30, 30, 30));
         panel.setBorder(new EmptyBorder(0, 10, 10, 10));
         panel.setPreferredSize(new Dimension(220, 0));
 
-        // Inisialisasi array sesuai ukuran
         galleryLabels = new JLabel[maxPhotos];
-        
         for (int i = 0; i < maxPhotos; i++) {
             galleryLabels[i] = new JLabel("Slot " + (i + 1), SwingConstants.CENTER);
             galleryLabels[i].setFont(UI_FONT);
@@ -165,7 +158,7 @@ public class PhotoboothGUI extends JFrame {
         mainActionPanel.setBackground(new Color(30, 30, 30));
         mainActionPanel.setBorder(new EmptyBorder(10, 20, 20, 20));
 
-        // Tombol menyesuaikan teks dengan maxPhotos
+        // Tombol AMBIL FOTO
         btnCapture = new JButton("AMBIL FOTO (1/" + maxPhotos + ")");
         styleButton(btnCapture, PRIMARY_COLOR);
         btnCapture.setIcon(loadIcon("camera.png", 24)); 
@@ -249,7 +242,6 @@ public class PhotoboothGUI extends JFrame {
     // --- LOGIKA UTAMA (Disesuaikan dengan maxPhotos) ---
 
     private void startSingleCaptureCountdown() {
-        // Cek limit menggunakan maxPhotos
         if (currentCaptureSlot >= maxPhotos) {
             JOptionPane.showMessageDialog(this, "Galeri sudah penuh. Silakan simpan strip foto Anda.");
             return;
@@ -286,8 +278,6 @@ public class PhotoboothGUI extends JFrame {
         service.addCapturedImage(filteredImage);
         updateGallery();
         currentCaptureSlot++;
-        
-        // Cek limit menggunakan maxPhotos
         if (currentCaptureSlot >= maxPhotos) {
             btnCapture.setEnabled(false);
             btnSave.setEnabled(true);
@@ -295,14 +285,12 @@ public class PhotoboothGUI extends JFrame {
             btnCapture.setText("GALERI PENUH");
         } else {
             btnCapture.setEnabled(true);
-            // Update teks tombol dinamis
             btnCapture.setText("AMBIL FOTO (" + (currentCaptureSlot + 1) + "/" + maxPhotos + ")");
         }
     }
 
     private void updateGallery() {
         int capturedCount = service.getCapturedImages().size();
-        // Loop sesuai maxPhotos
         for (int i = 0; i < maxPhotos; i++) {
             if (i < capturedCount) {
                 BufferedImage img = service.getCapturedImages().get(i);
