@@ -72,7 +72,7 @@ public class PhotoboothGUI extends JFrame {
         add(createHeaderPanel(), BorderLayout.NORTH);
 
         webcamPanel = new WebcamPanel(service.getCameraManager().getWebcam());
-        webcamPanel.setMirrored(true);
+        webcamPanel.setMirrored(false);
         Painter defaultPainter = webcamPanel.getPainter();
         countdownPainter = new CountdownPainter(defaultPainter);
         webcamPanel.setPainter(countdownPainter);
