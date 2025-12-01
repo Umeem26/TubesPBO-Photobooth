@@ -177,6 +177,12 @@ public class PhotoboothGUI extends JFrame {
         comboExport = new JComboBox<>(new String[]{"Komputer", "Google Drive"});
         styleComboBox(comboExport);
 
+        comboFilter.addActionListener(e -> {
+            String selected = (String) comboFilter.getSelectedItem();
+            FilterStrategy strategy = filterStrategies.get(selected);
+            countdownPainter.setFilter(strategy);
+        });
+
         JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         buttonPanel.setOpaque(false);
         buttonPanel.add(btnCapture);
@@ -367,21 +373,38 @@ public class PhotoboothGUI extends JFrame {
         private Painter defaultPainter;
         private String countdownText = "";
         private Font countdownFont;
+        private FilterStrategy currentFilter;
+
         public CountdownPainter(Painter defaultPainter) {
             this.defaultPainter = defaultPainter;
             this.countdownFont = new Font("Segoe UI", Font.BOLD, 150);
+            this.currentFilter = new NoFilterStrategy();
         }
-        public void setCountdownText(String text) { this.countdownText = text; }
-        
+
+        public void setCountdownText(String text) {
+            this.countdownText = text;
+        }
+
+        public void setFilter(FilterStrategy filter) {
+            this.currentFilter = filter;
+        }
+
         @Override
         public void paintPanel(WebcamPanel panel, Graphics2D g2) {
             defaultPainter.paintPanel(panel, g2);
         }
+
         @Override
         public void paintImage(WebcamPanel panel, BufferedImage image, Graphics2D g2) {
-            defaultPainter.paintImage(panel, image, g2);
-            if (countdownText.isEmpty()) return;
-            
+            BufferedImage processedImage = image;
+            if (currentFilter != null) {
+                processedImage = currentFilter.applyFilter(image);
+            }
+            defaultPainter.paintImage(panel, processedImage, g2);
+
+            if (countdownText.isEmpty())
+                return;
+
             g2.setColor(new Color(0, 0, 0, 100));
             g2.fillRect(0, 0, panel.getWidth(), panel.getHeight());
             
