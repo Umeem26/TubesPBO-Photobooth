@@ -5,6 +5,7 @@ import com.github.sarxos.webcam.WebcamResolution;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
 
 // Ini adalah Design Pattern #2: Singleton (versi baru)
 public class CameraManager {
@@ -74,4 +75,33 @@ public class CameraManager {
             System.out.println("LOG: Kamera ditutup.");
         }
     }
+
+        /**
+     * Mengembalikan daftar semua webcam yang terdeteksi.
+     */
+    public List<Webcam> getDetectedWebcams() {
+        return Webcam.getWebcams();
+    }
+
+    /**
+     * Ganti kamera yang digunakan seluruh aplikasi.
+     * Dipakai oleh GUI ketika user memilih kamera berbeda dari dropdown.
+     */
+    public void switchToWebcam(Webcam newWebcam) {
+        if (newWebcam == null) return;
+        if (this.webcam == newWebcam) return;
+
+        // Tutup kamera lama
+        if (this.webcam != null && this.webcam.isOpen()) {
+            this.webcam.close();
+        }
+
+        // Set kamera baru
+        this.webcam = newWebcam;
+        this.webcam.setViewSize(WebcamResolution.VGA.getSize());
+        this.webcam.open(true);
+
+        System.out.println("LOG: Berpindah ke kamera: " + this.webcam.getName());
+    }
+
 }

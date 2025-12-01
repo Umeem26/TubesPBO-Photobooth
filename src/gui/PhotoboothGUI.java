@@ -56,6 +56,10 @@ public class PhotoboothGUI extends JFrame {
     private String selectedTemplateId;
     private int maxPhotos;
 
+    private JComboBox<String> comboCamera;
+    private java.util.List<com.github.sarxos.webcam.Webcam> availableWebcams;
+    private JPanel webcamContainer;
+
     private final Color PRIMARY_COLOR = new Color(0, 120, 215); 
     private final Color SUCCESS_COLOR = new Color(30, 160, 80); 
     private final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 24);
@@ -77,6 +81,7 @@ public class PhotoboothGUI extends JFrame {
         getContentPane().setBackground(new Color(30, 30, 30));
 
         initializeFilters();
+        initCameraCombo();  
 
         add(createHeaderPanel(), BorderLayout.NORTH);
 
@@ -85,8 +90,8 @@ public class PhotoboothGUI extends JFrame {
         Painter defaultPainter = webcamPanel.getPainter();
         countdownPainter = new CountdownPainter(defaultPainter);
         webcamPanel.setPainter(countdownPainter);
-        
-        JPanel webcamContainer = new JPanel(new BorderLayout());
+
+        webcamContainer = new JPanel(new BorderLayout());
         webcamContainer.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 2));
         webcamContainer.add(webcamPanel, BorderLayout.CENTER);
         add(webcamContainer, BorderLayout.CENTER);
@@ -162,24 +167,79 @@ public class PhotoboothGUI extends JFrame {
         return panel;
     }
 
+    private void initCameraCombo() {
+        availableWebcams = service.getCameraManager().getDetectedWebcams();
+
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (com.github.sarxos.webcam.Webcam cam : availableWebcams) {
+            names.add(cam.getName());
+        }
+
+        comboCamera = new JComboBox<>(names.toArray(new String[0]));
+        styleComboBox(comboCamera);
+
+        // Set pilihan awal ke kamera yang sedang dipakai sekarang
+        com.github.sarxos.webcam.Webcam current = service.getCameraManager().getWebcam();
+        // tapi kita sudah punya langsung:
+        current = service.getCameraManager().getWebcam();
+
+        int idx = availableWebcams.indexOf(current);
+        if (idx >= 0) {
+            comboCamera.setSelectedIndex(idx);
+        }
+
+        // Listener ketika user mengganti kamera
+        comboCamera.addActionListener(e -> {
+            int i = comboCamera.getSelectedIndex();
+            if (i < 0 || i >= availableWebcams.size()) return;
+
+            com.github.sarxos.webcam.Webcam selectedCam = availableWebcams.get(i);
+
+            // ganti di CameraManager (supaya logic lain yang pakai CameraManager ikut kamera ini)
+            service.getCameraManager().switchToWebcam(selectedCam);
+
+            // Bangun WebcamPanel baru dengan kamera terpilih
+            webcamPanel = new WebcamPanel(selectedCam);
+            webcamPanel.setMirrored(false);
+
+            Painter defaultPainter = webcamPanel.getPainter();
+            countdownPainter = new CountdownPainter(defaultPainter);
+            webcamPanel.setPainter(countdownPainter);
+
+            // Ganti komponen di container
+            if (webcamContainer != null) {
+                webcamContainer.removeAll();
+                webcamContainer.add(webcamPanel, BorderLayout.CENTER);
+                webcamContainer.revalidate();
+                webcamContainer.repaint();
+            }
+            webcamPanel.start();
+        });
+    }
+
     private JPanel createActionPanel() {
         JPanel mainActionPanel = new JPanel(new BorderLayout(10, 10));
         mainActionPanel.setBackground(new Color(30, 30, 30));
         mainActionPanel.setBorder(new EmptyBorder(10, 20, 20, 20));
 
+        // =======================
+        //  TOMBOL UTAMA (ATAS)
+        // =======================
+
         // Tombol AMBIL FOTO
         btnCapture = new JButton("AMBIL FOTO (1/" + maxPhotos + ")");
         styleButton(btnCapture, PRIMARY_COLOR);
-        btnCapture.setIcon(loadIcon("camera.png", 24)); 
+        btnCapture.setIcon(loadIcon("camera.png", 24));
         btnCapture.addActionListener(e -> startSingleCaptureCountdown());
 
+        // Tombol SIMPAN STRIP
         btnSave = new JButton("SIMPAN STRIP");
         styleButton(btnSave, SUCCESS_COLOR);
         btnSave.setEnabled(false);
         btnSave.setIcon(loadIcon("save.png", 24));
         btnSave.addActionListener(e -> saveStripProcess());
 
-        // Tombol PREVIEW VIDEO (muncul setelah 4/4)
+        // Tombol PREVIEW VIDEO
         btnPreviewVideo = new JButton("PREVIEW VIDEO");
         styleButton(btnPreviewVideo, new Color(70, 70, 70));
         btnPreviewVideo.setEnabled(false);
@@ -191,7 +251,7 @@ public class PhotoboothGUI extends JFrame {
             // Kumpulkan semua video yang ada
             for (int i = 0; i < maxPhotos; i++) {
                 if (videoFiles != null && videoFiles[i] != null && videoFiles[i].exists()) {
-                    labels.add("Video sesi " + (i + 1));   // contoh: "Video sesi 1"
+                    labels.add("Video sesi " + (i + 1));
                     files.add(videoFiles[i]);
                 }
             }
@@ -231,43 +291,71 @@ public class PhotoboothGUI extends JFrame {
         btnRetake.setVisible(false);
         btnRetake.addActionListener(e -> retakeLastPhoto());
 
-        comboFilter = new JComboBox<>();
-        for (String filterName : filterStrategies.keySet()) comboFilter.addItem(filterName);
-        styleComboBox(comboFilter);
-
-        comboExport = new JComboBox<>(new String[]{"Komputer", "Google Drive"});
-        styleComboBox(comboExport);
-
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+        // Panel tombol baris atas
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 4, 20, 0));
         buttonPanel.setOpaque(false);
         buttonPanel.add(btnCapture);
         buttonPanel.add(btnSave);
         buttonPanel.add(btnPreviewVideo);
         buttonPanel.add(btnRetake);
 
-        JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
+        // =======================
+        //  DROPDOWN (BAWAH)
+        // =======================
+
+        // Combo filter (sudah diisi dari filterStrategies)
+        comboFilter = new JComboBox<>();
+        for (String filterName : filterStrategies.keySet()) {
+            comboFilter.addItem(filterName);
+        }
+        styleComboBox(comboFilter);
+
+        // Combo export
+        comboExport = new JComboBox<>(new String[]{"Komputer", "Google Drive"});
+        styleComboBox(comboExport);
+
+        // comboCamera DIASUMSIKAN sudah dibuat & di-style di tempat lain
+        // (misalnya di initCameraCombo())
+        // styleComboBox(comboCamera);  // kalau belum di-style, boleh diaktifkan
+
+        JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 0));
         optionsPanel.setOpaque(false);
-        
+
+        // Filter
         JPanel filterP = new JPanel(new BorderLayout(5, 0));
         filterP.setOpaque(false);
         JLabel lblFilter = new JLabel("Filter Efek:");
         lblFilter.setFont(UI_FONT);
+        lblFilter.setForeground(Color.WHITE);
         filterP.add(lblFilter, BorderLayout.NORTH);
         filterP.add(comboFilter, BorderLayout.CENTER);
-        
+
+        // Export
         JPanel exportP = new JPanel(new BorderLayout(5, 0));
         exportP.setOpaque(false);
         JLabel lblExport = new JLabel("Simpan Ke:");
         lblExport.setFont(UI_FONT);
+        lblExport.setForeground(Color.WHITE);
         exportP.add(lblExport, BorderLayout.NORTH);
         exportP.add(comboExport, BorderLayout.CENTER);
 
+        // Kamera
+        JPanel cameraP = new JPanel(new BorderLayout(5, 0));
+        cameraP.setOpaque(false);
+        JLabel lblCamera = new JLabel("Kamera:");
+        lblCamera.setFont(UI_FONT);
+        lblCamera.setForeground(Color.WHITE);
+        cameraP.add(lblCamera, BorderLayout.NORTH);
+        cameraP.add(comboCamera, BorderLayout.CENTER);
+
         optionsPanel.add(filterP);
         optionsPanel.add(exportP);
+        optionsPanel.add(cameraP);
 
+        // ====== RANGKAI PANEL ======
         mainActionPanel.add(buttonPanel, BorderLayout.NORTH);
         mainActionPanel.add(optionsPanel, BorderLayout.CENTER);
-        
+
         return mainActionPanel;
     }
 
@@ -516,7 +604,7 @@ public class PhotoboothGUI extends JFrame {
 
             btnRetake.setVisible(false);
             btnRetake.setEnabled(false);
-            
+
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
