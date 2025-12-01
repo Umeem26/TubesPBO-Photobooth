@@ -26,6 +26,7 @@ import javax.sound.sampled.Clip;
 import filter.FilterStrategy;
 import filter.GrayscaleFilterStrategy;
 import filter.NoFilterStrategy;
+import filter.VintageFilterStrategy;
 
 public class PhotoboothGUI extends JFrame {
 
@@ -106,8 +107,11 @@ public class PhotoboothGUI extends JFrame {
         filterStrategies = new HashMap<>();
         FilterStrategy noFilter = new NoFilterStrategy();
         FilterStrategy grayFilter = new GrayscaleFilterStrategy();
+        FilterStrategy vintageFilter = new VintageFilterStrategy();
+
         filterStrategies.put(noFilter.getFilterName(), noFilter);
         filterStrategies.put(grayFilter.getFilterName(), grayFilter);
+        filterStrategies.put(vintageFilter.getFilterName(), vintageFilter);
     }
 
     private JPanel createHeaderPanel() {
