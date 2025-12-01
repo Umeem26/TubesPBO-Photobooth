@@ -71,8 +71,8 @@ public class TemplateSelectionGUI extends JFrame {
         JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setBackground(MAIN_BG);
 
-        JButton btnVertical = createBigOptionButton("Strip Vertikal", "TPL-V");
-        JButton btnHorizontal = createBigOptionButton("Strip Horizontal", "TPL-H");
+        JButton btnVertical = createBigOptionButton("Strip Vertikal", "TPL-V-4");
+        JButton btnHorizontal = createBigOptionButton("Strip Horizontal", "TPL-H-4");
 
         btnVertical.addActionListener(e -> {
             selectedLayoutType = "VERTICAL";
@@ -165,17 +165,26 @@ public class TemplateSelectionGUI extends JFrame {
         btn.setForeground(Color.WHITE);
         btn.setBackground(CARD_BG);
         btn.setFocusPainted(false);
-        btn.setPreferredSize(new Dimension(300, 200));
+        btn.setPreferredSize(new Dimension(300, 350));
 
         // Jika ada ID template, coba ambil previewnya
         if (previewTemplateId != null) {
             StripTemplate tpl = service.getAvailableTemplates().get(previewTemplateId);
             if (tpl != null) {
                 BufferedImage img = tpl.getPreviewImage();
-                Image scaled = img.getScaledInstance(100, 100, Image.SCALE_SMOOTH); // Thumbnail kecil
+                int targetWidth = 200;
+                int targetHeight = (int) ((double) img.getHeight() / img.getWidth() * targetWidth);
+
+                if (targetHeight > 250) {
+                    targetHeight = 250;
+                    targetWidth = (int) ((double) img.getWidth() / img.getHeight() * targetHeight);
+                }
+
+                Image scaled = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
                 btn.setIcon(new ImageIcon(scaled));
                 btn.setVerticalTextPosition(SwingConstants.BOTTOM);
                 btn.setHorizontalTextPosition(SwingConstants.CENTER);
+                btn.setIconTextGap(20);
             }
         }
 
