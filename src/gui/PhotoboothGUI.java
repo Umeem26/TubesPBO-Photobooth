@@ -31,6 +31,7 @@ import filter.VintageFilterStrategy;
 import utils.VideoRecorder;
 import utils.VideoPreviewWindow;
 import utils.StripVideoPreviewWindow;
+import utils.StripVideoExporter;
 
 
 public class PhotoboothGUI extends JFrame {
@@ -250,18 +251,7 @@ public class PhotoboothGUI extends JFrame {
         styleButton(btnPreviewVideo, new Color(70, 70, 70));
         btnPreviewVideo.setEnabled(false);
         btnPreviewVideo.addActionListener(e -> {
-            java.util.List<String> labels = new java.util.ArrayList<>();
-            java.util.List<File> files = new java.util.ArrayList<>();
-
-            // Kumpulkan semua video per sesi
-            for (int i = 0; i < maxPhotos; i++) {
-                if (videoFiles != null && videoFiles[i] != null && videoFiles[i].exists()) {
-                    labels.add("Video sesi " + (i + 1));
-                    files.add(videoFiles[i]);
-                }
-            }
-
-            // cek apakah semua slot punya video → baru tampilkan opsi strip
+            // Pastikan semua sesi punya video
             boolean hasFullStrip = true;
             if (videoFiles == null) {
                 hasFullStrip = false;
@@ -276,55 +266,32 @@ public class PhotoboothGUI extends JFrame {
                 }
             }
 
-            final String STRIP_LABEL = "Video strip (semua sesi)";
-            if (hasFullStrip && maxPhotos >= 2) {
-                labels.add(STRIP_LABEL);
-                // (tidak ditambah ke files, diproses khusus)
-            }
-
-            if (labels.isEmpty()) {
+            if (!hasFullStrip) {
                 JOptionPane.showMessageDialog(
                         this,
-                        "Belum ada video rekaman untuk sesi ini.",
+                        "Video untuk semua sesi belum lengkap.",
                         "Info",
                         JOptionPane.INFORMATION_MESSAGE
                 );
                 return;
             }
 
-            Object choice = JOptionPane.showInputDialog(
-                    this,
-                    "Pilih video yang ingin dipreview:",
-                    "Preview Video",
-                    JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    labels.toArray(),
-                    labels.get(0)
-            );
-
-            if (choice != null) {
-                String chosen = choice.toString();
-                if (chosen.equals(STRIP_LABEL)) {
-                    // pakai template yang sama dengan cetak
-                    StripTemplate tpl = service.getAvailableTemplates().get(selectedTemplateId);
-                    if (tpl != null) {
-                        new StripVideoPreviewWindow(videoFiles, maxPhotos, tpl);
-                    } else {
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "Template video tidak ditemukan.",
-                                "Error",
-                                JOptionPane.ERROR_MESSAGE
-                        );
-                    }
-                } else {
-                    int idx = labels.indexOf(chosen);
-                    if (idx >= 0 && idx < files.size()) {
-                        new VideoPreviewWindow(files.get(idx));
-                    }
-                }
+            // Ambil template yang sama seperti saat cetak strip
+            StripTemplate tpl = service.getAvailableTemplates().get(selectedTemplateId);
+            if (tpl == null) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Template video tidak ditemukan.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
             }
+
+            // Langsung buka preview strip video
+            new StripVideoPreviewWindow(videoFiles, maxPhotos, tpl);
         });
+
 
         // Tombol AMBIL ULANG (RETAKE)
         btnRetake = new JButton("AMBIL ULANG FOTO");
@@ -612,44 +579,79 @@ public class PhotoboothGUI extends JFrame {
     
     private void saveStripProcess() {
         try {
+            // 1. Generate gambar strip sesuai template
             BufferedImage finalStrip = service.generateStrip(this.selectedTemplateId);
 
+            // 2. Tampilkan preview strip foto dulu
             ImageIcon previewIcon = new ImageIcon(finalStrip.getScaledInstance(
-                finalStrip.getWidth() / 2, finalStrip.getHeight() / 2, Image.SCALE_SMOOTH));
-            
+                    finalStrip.getWidth() / 2,
+                    finalStrip.getHeight() / 2,
+                    Image.SCALE_SMOOTH
+            ));
+
             int choice = JOptionPane.showConfirmDialog(
-                this, new JLabel(previewIcon), "Preview Hasil",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            
+                    this,
+                    new JLabel(previewIcon),
+                    "Preview Hasil",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE
+            );
+
             if (choice != JOptionPane.OK_OPTION) return;
 
+            // 3. Tentukan strategi export gambar (Komputer / Google Drive)
             ExportStrategy strategy;
             String selectedExport = (String) comboExport.getSelectedItem();
-            if (selectedExport.equals("Google Drive")) {
+            if ("Google Drive".equals(selectedExport)) {
                 strategy = new DriveExportStrategy();
             } else {
                 strategy = new LocalExportStrategy();
             }
 
+            // 4. Simpan gambar strip
             service.saveFinalImage(strategy, finalStrip);
-            
-            JOptionPane.showMessageDialog(this, "Berhasil disimpan!");
-            
+
+            // 5. Sekaligus generate VIDEO STRIP (dari video sesi 1..N)
+            File stripVideoFile = null;
+            try {
+                StripTemplate tpl = service.getAvailableTemplates().get(this.selectedTemplateId);
+                if (tpl != null) {
+                    // exportStripVideo juga akan MENGHAPUS semua file video sesi
+                    stripVideoFile = StripVideoExporter.exportStripVideo(videoFiles, maxPhotos, tpl);
+                }
+            } catch (Exception ve) {
+                ve.printStackTrace();
+            }
+
+            // 6. Info ke user
+            String msg = "Berhasil disimpan!";
+            if (stripVideoFile != null) {
+                msg += "\nVideo strip tersimpan di:\n" + stripVideoFile.getAbsolutePath();
+            }
+            JOptionPane.showMessageDialog(this, msg);
+
+            // 7. Reset state untuk sesi berikutnya
             service.clearCapturedImages();
             updateGallery();
+
             btnSave.setEnabled(false);
             btnCapture.setEnabled(true);
-            btnCapture.setBackground(PRIMARY_COLOR); 
+            btnCapture.setBackground(PRIMARY_COLOR);
             currentCaptureSlot = 0;
             btnCapture.setText("AMBIL FOTO (1/" + maxPhotos + ")");
-            
+
             btnPreviewVideo.setEnabled(false);
-            java.util.Arrays.fill(videoFiles, null);
+            java.util.Arrays.fill(videoFiles, null); // array dikosongkan (file fisik sudah dihapus oleh exporter)
 
             btnRetake.setEnabled(false);
 
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Error: " + ex.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 

@@ -17,16 +17,19 @@ import model.StripTemplate;
 /**
  * Preview gabungan video berdasarkan StripTemplate yang sama
  * dengan template cetak (Classic, Vertical, Horizontal, dll).
+ *
+ * HANYA UNTUK PREVIEW (tidak menyimpan file video).
  */
 public class StripVideoPreviewWindow extends JWindow {
 
     private JLabel videoLabel = new JLabel();
 
     private static final int FPS = VideoRecorder.FPS;
+    private static final int STRIP_REPEAT = 2; // ulang tiap frame strip 2x -> durasi ~2x
     private File[] videoFiles;
     private int maxPhotos;
     private StripTemplate template;
-    private boolean sizeInitialized = false;   // <-- untuk atur size sekali saja
+    private boolean sizeInitialized = false;
 
     public StripVideoPreviewWindow(File[] videoFiles, int maxPhotos, StripTemplate template) {
         this.maxPhotos = maxPhotos;
@@ -44,7 +47,6 @@ public class StripVideoPreviewWindow extends JWindow {
         videoLabel.setHorizontalAlignment(SwingConstants.CENTER);
         add(videoLabel, BorderLayout.CENTER);
 
-        // BELUM setSize di sini, kita sesuaikan setelah frame pertama
         setAlwaysOnTop(true);
         setVisible(true);
 
@@ -69,6 +71,7 @@ public class StripVideoPreviewWindow extends JWindow {
 
             while (true) {
                 boolean anyFrame = false;
+                boolean stopAll = false;                    // <<< NEW
                 BufferedImage[] frames = new BufferedImage[maxPhotos];
 
                 // ambil 1 frame dari tiap video
@@ -78,13 +81,15 @@ public class StripVideoPreviewWindow extends JWindow {
                     Picture pic = grabs[i].getNativeFrame();
                     if (pic == null) {
                         finished[i] = true;
+                        stopAll = true;                     // <<< STOP kalau ada yang habis
                     } else {
                         frames[i] = AWTUtil.toBufferedImage(pic);
                         anyFrame = true;
                     }
                 }
 
-                if (!anyFrame) break; // semua video habis
+                // Kalau tidak ada frame sama sekali, atau sudah ada 1 video yang habis → stop
+                if (!anyFrame || stopAll) break;
 
                 // ubah ke list sesuai urutan template
                 ArrayList<BufferedImage> frameList = new ArrayList<>();
@@ -114,13 +119,14 @@ public class StripVideoPreviewWindow extends JWindow {
                     });
                 }
 
-                SwingUtilities.invokeLater(() ->
-                        videoLabel.setIcon(new ImageIcon(scaled))
-                );
-
-                try {
-                    Thread.sleep(1000 / FPS);
-                } catch (InterruptedException ignored) { }
+                // Tampilkan frame strip yang sama beberapa kali
+                final ImageIcon icon = new ImageIcon(scaled);
+                for (int r = 0; r < STRIP_REPEAT; r++) {
+                    SwingUtilities.invokeLater(() -> videoLabel.setIcon(icon));
+                    try {
+                        Thread.sleep(1000 / FPS);
+                    } catch (InterruptedException ignored) { }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
