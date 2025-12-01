@@ -26,6 +26,7 @@ import javax.sound.sampled.Clip;
 import filter.FilterStrategy;
 import filter.GrayscaleFilterStrategy;
 import filter.NoFilterStrategy;
+import filter.VintageFilterStrategy;
 
 import utils.VideoRecorder;
 import utils.VideoPreviewWindow;
@@ -122,8 +123,11 @@ public class PhotoboothGUI extends JFrame {
         filterStrategies = new HashMap<>();
         FilterStrategy noFilter = new NoFilterStrategy();
         FilterStrategy grayFilter = new GrayscaleFilterStrategy();
+        FilterStrategy vintageFilter = new VintageFilterStrategy();
+
         filterStrategies.put(noFilter.getFilterName(), noFilter);
         filterStrategies.put(grayFilter.getFilterName(), grayFilter);
+        filterStrategies.put(vintageFilter.getFilterName(), vintageFilter);
     }
 
     private JPanel createHeaderPanel() {
@@ -330,6 +334,13 @@ public class PhotoboothGUI extends JFrame {
 
         // Panel tombol baris atas
         JPanel buttonPanel = new JPanel(new GridLayout(1, 4, 20, 0));
+        comboFilter.addActionListener(e -> {
+            String selected = (String) comboFilter.getSelectedItem();
+            FilterStrategy strategy = filterStrategies.get(selected);
+            countdownPainter.setFilter(strategy);
+        });
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         buttonPanel.setOpaque(false);
         buttonPanel.add(btnCapture);
         buttonPanel.add(btnSave);
@@ -661,16 +672,27 @@ public class PhotoboothGUI extends JFrame {
         private Painter defaultPainter;
         private String countdownText = "";
         private Font countdownFont;
+        private FilterStrategy currentFilter;
+
         public CountdownPainter(Painter defaultPainter) {
             this.defaultPainter = defaultPainter;
             this.countdownFont = new Font("Segoe UI", Font.BOLD, 150);
+            this.currentFilter = new NoFilterStrategy();
         }
-        public void setCountdownText(String text) { this.countdownText = text; }
-        
+
+        public void setCountdownText(String text) {
+            this.countdownText = text;
+        }
+
+        public void setFilter(FilterStrategy filter) {
+            this.currentFilter = filter;
+        }
+
         @Override
         public void paintPanel(WebcamPanel panel, Graphics2D g2) {
             defaultPainter.paintPanel(panel, g2);
         }
+
         @Override
         public void paintImage(WebcamPanel panel, BufferedImage image, Graphics2D g2) {
 
@@ -684,6 +706,16 @@ public class PhotoboothGUI extends JFrame {
             if (countdownText == null || countdownText.isEmpty()) return;
 
             g2.setColor(new Color(0, 0, 0, 150));
+            BufferedImage processedImage = image;
+            if (currentFilter != null) {
+                processedImage = currentFilter.applyFilter(image);
+            }
+            defaultPainter.paintImage(panel, processedImage, g2);
+
+            if (countdownText.isEmpty())
+                return;
+
+            g2.setColor(new Color(0, 0, 0, 100));
             g2.fillRect(0, 0, panel.getWidth(), panel.getHeight());
             
             g2.setFont(countdownFont);
