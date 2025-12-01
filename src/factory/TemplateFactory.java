@@ -1,12 +1,8 @@
 package factory;
 
 import model.StripTemplate;
-import template.TemplateSquare;
 import template.TemplateVertical;
-import template.TemplateClassicStrip;
 import template.TemplateHorizontal;
-import template.TemplateFeatured;
-import template.TemplateFourCorners;
 
 public class TemplateFactory {
 
@@ -32,15 +28,6 @@ public class TemplateFactory {
             return new TemplateHorizontal(3);
         } else if (templateId.equalsIgnoreCase("TPL-H-4")) {
             return new TemplateHorizontal(4);
-
-        } else if (templateId.equalsIgnoreCase("TPL-SQ")) {
-            return new TemplateSquare();
-        } else if (templateId.equalsIgnoreCase("TPL-C")) {
-            return new TemplateClassicStrip();
-        } else if (templateId.equalsIgnoreCase("TPL-F")) {
-            return new TemplateFeatured();
-        } else if (templateId.equalsIgnoreCase("TPL-COR")) {
-            return new TemplateFourCorners();
         }
 
         return null;
