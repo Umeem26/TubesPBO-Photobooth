@@ -13,7 +13,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingConstants;
 
-// Google Drive Imports
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -28,7 +27,6 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.Permission;
 
-// QR Code Imports (ZXing)
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
@@ -40,117 +38,103 @@ public class DriveExportStrategy implements ExportStrategy {
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_FILE);
-    
-    // Nama file credential yang Anda simpan di folder src
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json"; 
 
     @Override
-    public String getStrategyName() { return "Upload ke Google Drive (QR Code)"; }
+    public String getStrategyName() { return "Google Drive"; }
 
     @Override
-    public boolean export(BufferedImage image) {
-        System.out.println("LOG: Memulai proses upload ke Drive...");
+    public boolean export(BufferedImage image, File videoFile) {
+        System.out.println("LOG: Memulai proses upload ke Drive (Folder)...");
         
-        // 1. Simpan gambar sementara ke disk agar bisa diupload
-        File tempFile = new File("temp_upload.png");
+        File tempImage = new File("temp_strip.png");
         try {
-            ImageIO.write(image, "PNG", tempFile);
+            ImageIO.write(image, "PNG", tempImage);
         } catch (IOException e) {
-            System.err.println("Gagal menyimpan file sementara: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
 
         try {
-            // 2. Login & Setup Drive Service
             Drive service = getDriveService();
 
-            // 3. Siapkan Metadata File
-            com.google.api.services.drive.model.File fileMetadata = new com.google.api.services.drive.model.File();
-            fileMetadata.setName("Foto_Photobooth_" + System.currentTimeMillis() + ".png");
+            // 1. BUAT FOLDER DULU
+            com.google.api.services.drive.model.File folderMetadata = new com.google.api.services.drive.model.File();
+            folderMetadata.setName("Photobooth Session " + System.currentTimeMillis());
+            folderMetadata.setMimeType("application/vnd.google-apps.folder");
 
-            // 4. Siapkan Konten File
-            FileContent mediaContent = new FileContent("image/png", tempFile);
-
-            // 5. Eksekusi Upload
-            System.out.println("LOG: Mengupload file...");
-            com.google.api.services.drive.model.File uploadedFile = service.files().create(fileMetadata, mediaContent)
-                    .setFields("id, webViewLink") // Minta kembalian ID dan Link
+            com.google.api.services.drive.model.File folder = service.files().create(folderMetadata)
+                    .setFields("id, webViewLink")
                     .execute();
+            String folderId = folder.getId();
+            System.out.println("Folder ID: " + folderId);
+
+            // 2. UPLOAD FOTO KE DALAM FOLDER
+            com.google.api.services.drive.model.File photoMetadata = new com.google.api.services.drive.model.File();
+            photoMetadata.setName("Photo_Strip.png");
+            photoMetadata.setParents(Collections.singletonList(folderId)); // Masukkan ke folder
             
-            System.out.println("File ID: " + uploadedFile.getId());
+            FileContent photoContent = new FileContent("image/png", tempImage);
+            service.files().create(photoMetadata, photoContent).execute();
+            System.out.println("Foto terupload.");
 
-            // 6. Ubah Izin jadi PUBLIC (Agar bisa discan siapa saja)
-            Permission userPermission = new Permission()
-                    .setType("anyone")
-                    .setRole("reader");
-            service.permissions().create(uploadedFile.getId(), userPermission).execute();
+            // 3. UPLOAD VIDEO (Jika Ada) KE DALAM FOLDER
+            if (videoFile != null && videoFile.exists()) {
+                com.google.api.services.drive.model.File videoMetadata = new com.google.api.services.drive.model.File();
+                videoMetadata.setName("Video_Strip.mp4");
+                videoMetadata.setParents(Collections.singletonList(folderId));
 
-            // 7. Ambil Link
-            String shareLink = uploadedFile.getWebViewLink();
-            System.out.println("Link Drive: " + shareLink);
+                FileContent videoContent = new FileContent("video/mp4", videoFile);
+                service.files().create(videoMetadata, videoContent).execute();
+                System.out.println("Video terupload.");
+            }
 
-            // 8. Generate QR Code
+            // 4. SET PERMISSION FOLDER JADI PUBLIC
+            Permission userPermission = new Permission().setType("anyone").setRole("reader");
+            service.permissions().create(folderId, userPermission).execute();
+
+            // 5. AMBIL LINK FOLDER UNTUK QR CODE
+            String shareLink = folder.getWebViewLink();
+            
+            // 6. Tampilkan QR
             BufferedImage qrImage = generateQRCode(shareLink);
-
-            // 9. Tampilkan QR Code
             showQRCodeDialog(qrImage);
 
-            // Bersihkan file sementara
-            tempFile.delete();
+            tempImage.delete();
             return true;
 
         } catch (Exception e) {
-            // Tampilkan error di GUI agar terlihat
-            JOptionPane.showMessageDialog(null, "Gagal Upload: " + e.getMessage(), "Error Drive", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Gagal Upload: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
 
-    // --- Helper untuk Login Google ---
+    // --- Helpers (Sama seperti sebelumnya) ---
     private Drive getDriveService() throws Exception {
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        
-        // Cari file credentials.json di folder src
         InputStream in = DriveExportStrategy.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-        if (in == null) {
-            throw new IOException("File 'credentials.json' tidak ditemukan di folder src!");
-        }
-        
+        if (in == null) throw new IOException("Resource not found: " + CREDENTIALS_FILE_PATH);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-
-        // Alur Login OAuth2
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-        
-        // Buka browser lokal untuk login
+                .setAccessType("offline").build();
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
-
-        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, new AuthorizationCodeInstalledApp(flow, receiver).authorize("user"))
+                .setApplicationName(APPLICATION_NAME).build();
     }
 
-    // --- Helper untuk Bikin QR Code ---
     private BufferedImage generateQRCode(String text) throws Exception {
         QRCodeWriter barcodeWriter = new QRCodeWriter();
         BitMatrix bitMatrix = barcodeWriter.encode(text, BarcodeFormat.QR_CODE, 300, 300);
         return MatrixToImageWriter.toBufferedImage(bitMatrix);
     }
 
-    // --- Helper Tampilan ---
     private void showQRCodeDialog(BufferedImage qrImage) {
         JLabel qrLabel = new JLabel(new ImageIcon(qrImage));
-        JLabel textLabel = new JLabel("Scan QR Code ini untuk download foto!", SwingConstants.CENTER);
+        JLabel textLabel = new JLabel("Scan untuk Download Foto & Video!", SwingConstants.CENTER);
         textLabel.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
-        
-        JOptionPane.showMessageDialog(null, 
-            new Object[]{textLabel, qrLabel}, 
-            "Upload Berhasil!", 
-            JOptionPane.PLAIN_MESSAGE);
+        JOptionPane.showMessageDialog(null, new Object[]{textLabel, qrLabel}, "Upload Berhasil!", JOptionPane.PLAIN_MESSAGE);
     }
 }

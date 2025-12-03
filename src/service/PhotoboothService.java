@@ -11,6 +11,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.io.File;
 
 /**
  * Ini adalah "otak" bisnis dari aplikasi Photobooth.
@@ -97,12 +98,14 @@ public class PhotoboothService {
     /**
      * Menyimpan gambar final menggunakan strategi ekspor yang dipilih.
      */
-    public void saveFinalImage(ExportStrategy strategy, BufferedImage finalImage) throws ExportFailedException {
+    public void saveFinalImage(ExportStrategy strategy, BufferedImage finalImage, File videoFile) throws ExportFailedException {
         System.out.println("LOG: Service memanggil " + strategy.getStrategyName());
-        boolean success = strategy.export(finalImage);
+        
+        // Pass videoFile ke strategy
+        boolean success = strategy.export(finalImage, videoFile);
         
         if (!success) {
-            throw new ExportFailedException("Gagal mengekspor gambar.");
+            throw new ExportFailedException("Gagal mengekspor data.");
         }
     }
     

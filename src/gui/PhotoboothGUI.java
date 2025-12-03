@@ -576,29 +576,32 @@ public class PhotoboothGUI extends JFrame {
         }
     }
     
-    private void saveStripProcess() {
+private void saveStripProcess() {
         try {
-            // 1. Generate gambar strip sesuai template
+            // 1. Generate gambar strip
             BufferedImage finalStrip = service.generateStrip(this.selectedTemplateId);
 
-            // 2. Tampilkan preview strip foto dulu
+            // 2. Preview
             ImageIcon previewIcon = new ImageIcon(finalStrip.getScaledInstance(
-                    finalStrip.getWidth() / 2,
-                    finalStrip.getHeight() / 2,
-                    Image.SCALE_SMOOTH
-            ));
-
+                    finalStrip.getWidth() / 2, finalStrip.getHeight() / 2, Image.SCALE_SMOOTH));
             int choice = JOptionPane.showConfirmDialog(
-                    this,
-                    new JLabel(previewIcon),
-                    "Preview Hasil",
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.PLAIN_MESSAGE
-            );
-
+                    this, new JLabel(previewIcon), "Preview Hasil",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
             if (choice != JOptionPane.OK_OPTION) return;
 
-            // 3. Tentukan strategi export gambar (Komputer / Google Drive)
+            // 3. GENERATE VIDEO STRIP TERLEBIH DAHULU
+            File stripVideoFile = null;
+            try {
+                StripTemplate tpl = service.getAvailableTemplates().get(this.selectedTemplateId);
+                if (tpl != null) {
+                    // Method ini akan membuat video strip di folder lokal
+                    stripVideoFile = StripVideoExporter.exportStripVideo(videoFiles, maxPhotos, tpl);
+                }
+            } catch (Exception ve) {
+                ve.printStackTrace();
+            }
+
+            // 4. PILIH STRATEGI & EKSEKUSI PENYIMPANAN
             ExportStrategy strategy;
             String selectedExport = (String) comboExport.getSelectedItem();
             if ("Google Drive".equals(selectedExport)) {
@@ -607,50 +610,30 @@ public class PhotoboothGUI extends JFrame {
                 strategy = new LocalExportStrategy();
             }
 
-            // 4. Simpan gambar strip
-            service.saveFinalImage(strategy, finalStrip);
+            // PASS VIDEO FILE KE SERVICE
+            service.saveFinalImage(strategy, finalStrip, stripVideoFile);
 
-            // 5. Sekaligus generate VIDEO STRIP (dari video sesi 1..N)
-            File stripVideoFile = null;
-            try {
-                StripTemplate tpl = service.getAvailableTemplates().get(this.selectedTemplateId);
-                if (tpl != null) {
-                    // exportStripVideo juga akan MENGHAPUS semua file video sesi
-                    stripVideoFile = StripVideoExporter.exportStripVideo(videoFiles, maxPhotos, tpl);
-                }
-            } catch (Exception ve) {
-                ve.printStackTrace();
+            // 5. Feedback & Reset
+            if (!"Google Drive".equals(selectedExport)) {
+               // Kalau lokal, kasih info manual (kalau drive kan sudah ada QR code)
+               JOptionPane.showMessageDialog(this, "Berhasil disimpan!");
             }
 
-            // 6. Info ke user
-            String msg = "Berhasil disimpan!";
-            if (stripVideoFile != null) {
-                msg += "\nVideo strip tersimpan di:\n" + stripVideoFile.getAbsolutePath();
-            }
-            JOptionPane.showMessageDialog(this, msg);
-
-            // 7. Reset state untuk sesi berikutnya
+            // Reset GUI
             service.clearCapturedImages();
             updateGallery();
-
             btnSave.setEnabled(false);
             btnCapture.setEnabled(true);
             btnCapture.setBackground(PRIMARY_COLOR);
             currentCaptureSlot = 0;
             btnCapture.setText("AMBIL FOTO (1/" + maxPhotos + ")");
-
             btnPreviewVideo.setEnabled(false);
-            java.util.Arrays.fill(videoFiles, null); // array dikosongkan (file fisik sudah dihapus oleh exporter)
-
             btnRetake.setEnabled(false);
+            java.util.Arrays.fill(videoFiles, null);
 
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Error: " + ex.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
         }
     }
 

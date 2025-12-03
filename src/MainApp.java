@@ -32,7 +32,7 @@ public class MainApp {
             @Override
             public void run() {
                 // --- MODIFIKASI: Luncurkan TEMPLATE SELECTION GUI ---
-                // Buat GUI pemilihan dan oper service ke dalamnya
+                // Buat GUI pemilihan dan oper service ke dalamnyaz
                 TemplateSelectionGUI selectionGUI = new TemplateSelectionGUI(service);
                 
                 // Tampilkan GUI pemilihan
